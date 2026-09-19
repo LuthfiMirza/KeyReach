@@ -1,0 +1,19 @@
+{
+  "name": "keyreach_fetch",
+  "description": "Alat CLI untuk mengekstrak teks dan data dari URL secara aman menggunakan sesi lokal. Mengeksekusi command: python main.py fetch <URL> --channel <opsi>.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "url": {
+        "type": "string",
+        "description": "URL target yang ingin diekstrak datanya."
+      },
+      "channel": {
+        "type": "string",
+        "enum": ["secure", "twitter"],
+        "description": "Opsi backend channel yang digunakan untuk ekstraksi. Gunakan 'twitter' khusus untuk x.com/twitter.com, dan 'secure' untuk situs umum lainnya dengan cookie lokal."
+      }
+    },
+    "required": ["url"]
+  }
+}
