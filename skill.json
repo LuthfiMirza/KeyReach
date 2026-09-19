@@ -1,0 +1,177 @@
+{
+  "schema_version": "1.0",
+  "name": "keyreach",
+  "display_name": "KeyReach — AI Agent Capability Layer",
+  "description": "A CLI tool that gives AI Agents the ability to fetch web content, search the internet, and interact with social media platforms. All output is structured JSON or Markdown, safe for LLM consumption. Supports automatic backend fallback — if one source fails, it tries another.",
+  "version": "1.0.0",
+  "author": "your-org",
+  "generated_at": "2026-09-19T16:38:50.940555+00:00",
+  "invocation": {
+    "type": "cli",
+    "executable": "python main.py",
+    "working_directory": "."
+  },
+  "commands": [
+    {
+      "name": "fetch",
+      "description": "Fetch and extract the text content of any public web page or social media profile.  The tool automatically selects the best backend and falls back if needed.",
+      "usage": "python main.py fetch <url> [--timeout <seconds>] [--channel <name>]",
+      "parameters": [
+        {
+          "name": "url",
+          "type": "string",
+          "required": true,
+          "description": "The full URL to fetch (must start with http:// or https://).",
+          "example": "https://news.ycombinator.com"
+        },
+        {
+          "name": "--timeout",
+          "type": "integer",
+          "required": false,
+          "default": 15,
+          "description": "Request timeout in seconds."
+        },
+        {
+          "name": "--channel",
+          "type": "string",
+          "required": false,
+          "allowed_values": [
+            "web",
+            "twitter",
+            "jina"
+          ],
+          "description": "Force a specific backend channel. Leave empty for automatic selection."
+        },
+        {
+          "name": "--format",
+          "type": "string",
+          "required": false,
+          "default": "json",
+          "allowed_values": [
+            "json",
+            "markdown"
+          ],
+          "description": "Output format. Use 'json' for structured parsing."
+        }
+      ],
+      "output": {
+        "on_success": {
+          "status": "ok",
+          "url": "<string>",
+          "content": "<string — page text>",
+          "backend_used": "<string>",
+          "backends_attempted": [
+            "<string>"
+          ],
+          "elapsed_ms": "<integer>"
+        },
+        "on_failure": {
+          "status": "error",
+          "url": "<string>",
+          "error": "<string — human-readable reason>",
+          "backends_attempted": [
+            "<string>"
+          ],
+          "elapsed_ms": "<integer>",
+          "hint": "<string — suggested next step>"
+        }
+      },
+      "examples": [
+        {
+          "description": "Fetch Hacker News front page",
+          "command": "python main.py fetch https://news.ycombinator.com"
+        },
+        {
+          "description": "Fetch a Twitter/X profile",
+          "command": "python main.py fetch https://twitter.com/elonmusk"
+        },
+        {
+          "description": "Force Jina Reader for a JS-heavy page",
+          "command": "python main.py fetch https://example-spa.com --channel jina"
+        }
+      ]
+    },
+    {
+      "name": "search",
+      "description": "Search the web and return structured results (title, URL, snippet).",
+      "usage": "python main.py search <query> [--limit <n>]",
+      "parameters": [
+        {
+          "name": "query",
+          "type": "string",
+          "required": true,
+          "description": "The search query string.",
+          "example": "Python AI agent frameworks 2025"
+        },
+        {
+          "name": "--limit",
+          "type": "integer",
+          "required": false,
+          "default": 5,
+          "description": "Maximum number of results to return (1–20)."
+        }
+      ],
+      "output": {
+        "on_success": {
+          "status": "ok",
+          "query": "<string>",
+          "results": [
+            {
+              "title": "<str>",
+              "url": "<str>",
+              "snippet": "<str>"
+            }
+          ],
+          "count": "<integer>",
+          "elapsed_ms": "<integer>"
+        }
+      },
+      "examples": [
+        {
+          "description": "Search for AI news",
+          "command": "python main.py search \"OpenAI GPT-5\" --limit 10"
+        }
+      ]
+    },
+    {
+      "name": "status",
+      "description": "Check the health of all registered backend channels.",
+      "usage": "python main.py status",
+      "parameters": [],
+      "output": {
+        "on_success": {
+          "status": "ok",
+          "channels": [
+            {
+              "name": "<str>",
+              "healthy": true,
+              "detail": "<str>"
+            }
+          ],
+          "summary": "<string>"
+        }
+      }
+    },
+    {
+      "name": "skill-register",
+      "description": "Re-generate this skill.json file or print instructions.",
+      "usage": "python main.py skill-register [--output <path>] [--print-only]",
+      "parameters": [
+        {
+          "name": "--output",
+          "type": "string",
+          "required": false,
+          "default": "skill.json"
+        },
+        {
+          "name": "--print-only",
+          "type": "boolean",
+          "required": false,
+          "default": false,
+          "description": "Print instructions to stdout without writing a file."
+        }
+      ]
+    }
+  ],
+  "decision_guide": "Use 'fetch' when you need the full text of a specific URL. Use 'search' when you need to discover URLs for a topic. Use 'status' to check if backends are available before a batch operation. Always check the 'status' field in the response first before reading 'content'."
+}
