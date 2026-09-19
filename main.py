@@ -8,6 +8,7 @@ Usage:
     python main.py search <query> [--limit 5]
     python main.py skill-register [--output skill.json]
     python main.py status
+    python main.py doctor
 """
 
 import sys
@@ -139,6 +140,60 @@ def status(ctx: click.Context):
     """
     router: AgentRouter = ctx.obj["router"]
     result = router.health_check()
+    _emit(result, ctx.obj["format"])
+
+
+# ── doctor ────────────────────────────────────────────────────────────────────
+@cli.command()
+@click.pass_context
+def doctor(ctx: click.Context):
+    """
+    Perform a system diagnostic and health check.
+    
+    \b
+    Example:
+        python main.py doctor
+        keyreach doctor
+    """
+    import httpx
+    import platform
+    import sqlite3
+    
+    checks = {}
+    overall_status = "ok"
+
+    # Cek 1 & 3: Library & SQLite engine untuk Cookie
+    try:
+        import browser_cookie3
+        # Check SQLite version/support implicitly
+        sqlite3.connect(":memory:").close()
+        # Optional: warn on specific OS limitations, macOS usually works if unlocked
+        os_sys = platform.system()
+        checks["cookie_engine"] = f"ready ({os_sys})"
+    except ImportError:
+        checks["cookie_engine"] = "missing browser-cookie3"
+        overall_status = "error"
+    except Exception as e:
+        checks["cookie_engine"] = f"error: {e}"
+        overall_status = "error"
+        
+    # Cek 2: Jina Reader API Ping
+    try:
+        resp = httpx.get("https://r.jina.ai/", timeout=5)
+        if resp.status_code < 500:
+            checks["jina_fallback"] = "reachable"
+        else:
+            checks["jina_fallback"] = f"unreachable (HTTP {resp.status_code})"
+            overall_status = "error"
+    except Exception as e:
+        checks["jina_fallback"] = f"unreachable ({type(e).__name__})"
+        overall_status = "error"
+
+    result = {
+        "status": overall_status,
+        "checks": checks
+    }
+    
     _emit(result, ctx.obj["format"])
 
 
