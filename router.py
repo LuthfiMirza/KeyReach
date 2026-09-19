@@ -24,6 +24,7 @@ from core.logger import get_logger
 from channels.web import WebChannel
 from channels.twitter import TwitterChannel
 from channels.jina import JinaChannel       # Free fallback: Jina Reader API
+from channels.jina_fallback import JinaFallbackChannel # New explicit fallback
 from channels.search import SearchChannel
 from channels.secure_fetcher import SecureFetcherChannel
 
@@ -64,6 +65,7 @@ class AgentRouter:
             "twitter": TwitterChannel(),
             "web": WebChannel(),
             "jina": JinaChannel(),
+            "jina_fallback": JinaFallbackChannel(),
             "search": SearchChannel(),
             "secure": SecureFetcherChannel(),
         }
@@ -115,9 +117,27 @@ class AgentRouter:
 
             try:
                 content = channel.fetch(url=url, timeout=timeout)
+                
+                # Cek apakah konten berupa JSON yang berisi pesan error atau kosong
+                is_failed = False
+                try:
+                    import json
+                    parsed_content = json.loads(content)
+                    if isinstance(parsed_content, dict):
+                        # Jika ada error atau info kegagalan parsing
+                        if "error" in parsed_content or "info" in parsed_content:
+                            is_failed = True
+                except:
+                    pass
+                
+                if is_failed:
+                    logger.warning("Backend '%s' mengembalikan error/info kegagalan, melanjutkan fallback.", backend_name)
+                    continue
+
                 elapsed = int((time.perf_counter() - t0) * 1000)
                 logger.info("Backend '%s' succeeded in %dms.", backend_name, elapsed)
-                return {
+                
+                result = {
                     "status": "ok",
                     "url": url,
                     "content": content,
@@ -125,6 +145,12 @@ class AgentRouter:
                     "backends_attempted": backends_attempted,
                     "elapsed_ms": elapsed,
                 }
+                
+                # Tandai jika ini adalah backend cadangan (bukan yang pertama di pipeline)
+                if backend_name != pipeline[0]:
+                    result["fallback_triggered"] = True
+                    
+                return result
             except Exception as exc:  # noqa: BLE001
                 logger.warning("Backend '%s' failed: %s", backend_name, exc)
                 # Continue to next backend
@@ -229,8 +255,8 @@ class AgentRouter:
         if auto not in pipeline:
             pipeline.append(auto)
 
-        # Fallbacks — always append generic web + Jina, deduped
-        for fallback in ("web", "jina"):
+        # Fallbacks — always append generic web + Jina
+        for fallback in ("web", "jina", "jina_fallback"):
             if fallback not in pipeline:
                 pipeline.append(fallback)
 
