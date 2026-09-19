@@ -34,8 +34,10 @@ logger = get_logger(__name__)
 Result = dict[str, Any]
 
 
-# ── Domain → Channel mapping ──────────────────────────────────────────────────
-# Maps regex patterns against the incoming URL to choose the right channel.
+# ── Auto-Routing Logic (Deteksi Otomatis) ──────────────────────────────────────
+# Maps regex patterns against the incoming URL to choose the right channel automatically.
+# Jika argumen url mengandung twitter.com atau x.com, sistem akan otomatis
+# menggunakan channel twitter tanpa pengguna mengetik --channel twitter.
 DOMAIN_ROUTING_TABLE: list[tuple[str, str]] = [
     (r"(twitter\.com|x\.com)", "twitter"),
     (r"(reddit\.com)", "web"),
