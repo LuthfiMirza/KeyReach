@@ -47,14 +47,15 @@ class SecureFetcherChannel(BaseChannel):
     def ping(self) -> tuple[bool, str]:
         return True, "SecureFetcher available (requires local Chrome)"
 
-    def get_data(self, url: str, timeout: int = 15) -> dict:
+    def _fetch_raw_html(self, url: str, timeout: int = 15) -> str:
         """
-        Strict GET method to fetch and clean data.
+        Internal method to fetch raw HTML securely. 
+        DO NOT return this to the terminal directly.
         """
         # 1. URL Validation (HTTPS only)
         parsed_url = urlparse(url)
         if parsed_url.scheme != "https":
-            return {"error": "Hanya URL dengan skema https:// yang diizinkan untuk keamanan."}
+            return '{"error": "Hanya URL dengan skema https:// yang diizinkan untuk keamanan."}'
         
         domain = parsed_url.netloc
 
@@ -70,13 +71,13 @@ class SecureFetcherChannel(BaseChannel):
             cj = browser_cookie3.chrome(domain_name=domain_param)
             
         except sqlite3.OperationalError:
-            return {"error": "Browser Chrome sedang digunakan, tolong minta pengguna menutupnya sebentar atau gunakan backend lain."}
+            return '{"error": "Browser Chrome sedang digunakan, tolong minta pengguna menutupnya sebentar atau gunakan backend lain."}'
         except ImportError:
-            return {"error": "Library browser-cookie3 tidak terinstall."}
+            return '{"error": "Library browser-cookie3 tidak terinstall."}'
         except Exception as e:
             # We do NOT log the exception details to avoid leaking sensitive data
             logger.warning("Failed to extract cookies safely.")
-            return {"error": "Gagal mengekstrak cookie dari browser."}
+            return '{"error": "Gagal mengekstrak cookie dari browser."}'
 
         # 3. HTTPX Client setup (RAM-Only)
         headers = {
@@ -91,13 +92,28 @@ class SecureFetcherChannel(BaseChannel):
                 response = client.get(url)
                 response.raise_for_status()
                 html_content = response.text
+                return html_content
                 
         except httpx.RequestError as exc:
             logger.warning("HTTPX Request failed for %s", url)
-            return {"error": f"Gagal melakukan request: {exc}"}
+            return f'{{"error": "Gagal melakukan request: {exc}"}}'
         except Exception as exc:
             logger.warning("HTTPX Unexpected error")
-            return {"error": "Terjadi kesalahan saat memuat halaman."}
+            return '{"error": "Terjadi kesalahan saat memuat halaman."}'
+
+    def get_data(self, url: str, timeout: int = 15) -> dict:
+        """
+        Strict GET method to fetch and clean data.
+        """
+        html_content = self._fetch_raw_html(url, timeout)
+        
+        # If it's a JSON error string, return it as dict
+        if html_content.startswith('{"error"'):
+            import json
+            try:
+                return json.loads(html_content)
+            except:
+                pass
 
         # 4. Safe Parsing (No raw HTML)
         return self._parse_to_clean_json(html_content)
